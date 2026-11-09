@@ -1,0 +1,65 @@
+name: image
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  REGISTRY_IMAGE: ghcr.io/${{ github.repository }}
+  TAG: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || 'latest' }}
+  # Fork PRs get a read-only token, so they build without pushing.
+  PUSH: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
+
+jobs:
+  base:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        if: env.PUSH == 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: devcontainers/ci@v0.3
+        with:
+          subFolder: base
+          imageName: ${{ env.REGISTRY_IMAGE }}/base
+          imageTag: ${{ env.TAG }}
+          cacheFrom: ${{ env.REGISTRY_IMAGE }}/base:latest
+          platform: linux/amd64,linux/arm64
+          push: ${{ env.PUSH == 'true' && 'always' || 'never' }}
+
+  # Builds on the base image from this run, so it needs the pushed tag: not for fork PRs.
+  tools:
+    needs: base
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Point tools at this run's base image
+        run: sed -i "s#/base:latest#/base:$TAG#" tools/.devcontainer.json
+      - uses: devcontainers/ci@v0.3
+        with:
+          subFolder: tools
+          imageName: ${{ env.REGISTRY_IMAGE }}/tools
+          imageTag: ${{ env.TAG }}
+          cacheFrom: ${{ env.REGISTRY_IMAGE }}/tools:latest
+          platform: linux/amd64,linux/arm64
+          push: always
