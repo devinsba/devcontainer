@@ -6,17 +6,36 @@ on:
 
 jobs:
   delete-image:
+    # Fork PRs never pushed an image.
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
       packages: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      IMAGE: ghcr.io/${{ github.repository }}
       PKG: /users/${{ github.repository_owner }}/packages/container/${{ github.event.repository.name }}/versions
       TAG: pr-${{ github.event.number }}
     steps:
-      # Fork PRs never pushed an image. Untagged per-platform manifests of the deleted tag remain.
-      - if: github.event.pull_request.head.repo.full_name == github.repository
-        run: |
-          id=$(gh api --paginate "$PKG" --jq ".[] | select(.metadata.container.tags | index(\"$TAG\")) | .id")
-          if [ -z "$id" ]; then echo "no $TAG image"; exit 0; fi
-          gh api -X DELETE "$PKG/$id"
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: |
+          versions=$(gh api --paginate "$PKG" | jq -s 'add')
+          mine=$(jq -c --arg t "$TAG" '[.[] | select(.metadata.container.tags | index($t))][0] // empty' <<< "$versions")
+          if [ -z "$mine" ]; then echo "no $TAG image"; exit 0; fi
+          digest=$(jq -r .name <<< "$mine")
+          children() { docker buildx imagetools inspect --raw "$IMAGE@$1" | jq -r '.manifests[]?.digest'; }
+
+          # The per-platform (and attestation) manifests are untagged versions of their own. Keep any
+          # that another tag's index also points to, in case two builds produced identical content.
+          keep=$(jq -r --arg d "$digest" '.[] | select((.metadata.container.tags | length) > 0 and .name != $d) | .name' <<< "$versions" |
+            while read -r d; do children "$d"; done)
+          for child in $(children "$digest"); do
+            grep -qxF "$child" <<< "$keep" && continue
+            id=$(jq -r --arg n "$child" '.[] | select(.name == $n) | .id' <<< "$versions")
+            [ -n "$id" ] && gh api -X DELETE "$PKG/$id"
+          done
+          gh api -X DELETE "$PKG/$(jq -r .id <<< "$mine")"
