@@ -1,6 +1,7 @@
 {
   "name": "tools",
   "image": "ghcr.io/devinsba/devcontainer/base:latest",
+  "remoteUser": "brian",
   "features": {
     "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
     "ghcr.io/flexwie/devcontainer-features/op:1": {},
@@ -8,6 +9,6 @@
       "script": "echo 'Running custom script...'"
     }
   },
-  "mounts": ["source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume"],
-  "containerEnv": { "CLAUDE_CONFIG_DIR": "/home/vscode/.claude" }
+  "mounts": ["source=claude-code-config-${devcontainerId},target=/home/brian/.claude,type=volume"],
+  "containerEnv": { "CLAUDE_CONFIG_DIR": "/home/brian/.claude" }
 }
