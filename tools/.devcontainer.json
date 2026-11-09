@@ -1,0 +1,14 @@
+{
+  "name": "tools",
+  "image": "ghcr.io/devinsba/devcontainer/base:latest",
+  "features": {
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
+    "ghcr.io/flexwie/devcontainer-features/op:1": {},
+    "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {},
+    "ghcr.io/devcontainer-community/devcontainer-features/run-script:1": {
+      "script": "echo 'Running custom script...'"
+    }
+  },
+  "mounts": ["source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume"],
+  "containerEnv": { "CLAUDE_CONFIG_DIR": "/home/vscode/.claude" }
+}

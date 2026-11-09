@@ -9,12 +9,15 @@ jobs:
     # Fork PRs never pushed an image.
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image: [base, tools]
     permissions:
       packages: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      IMAGE: ghcr.io/${{ github.repository }}
-      PKG: /users/${{ github.repository_owner }}/packages/container/${{ github.event.repository.name }}/versions
+      IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.image }}
+      PKG: /users/${{ github.repository_owner }}/packages/container/${{ github.event.repository.name }}%2F${{ matrix.image }}/versions
       TAG: pr-${{ github.event.number }}
     steps:
       - uses: docker/login-action@v4
