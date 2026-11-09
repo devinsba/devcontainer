@@ -1,0 +1,22 @@
+name: cleanup
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  delete-image:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PKG: /users/${{ github.repository_owner }}/packages/container/${{ github.event.repository.name }}/versions
+      TAG: pr-${{ github.event.number }}
+    steps:
+      # Fork PRs never pushed an image. Untagged per-platform manifests of the deleted tag remain.
+      - if: github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          id=$(gh api --paginate "$PKG" --jq ".[] | select(.metadata.container.tags | index(\"$TAG\")) | .id")
+          if [ -z "$id" ]; then echo "no $TAG image"; exit 0; fi
+          gh api -X DELETE "$PKG/$id"
