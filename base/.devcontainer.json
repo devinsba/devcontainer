@@ -16,7 +16,8 @@
       "version": "3"
     },
     "ghcr.io/devcontainer-community/devcontainer-features/astral.sh-uv:1": {},
-    "ghcr.io/devcontainers/features/terraform:1": {}
+    "ghcr.io/devcontainers/features/terraform:1": {},
+    "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {}
   },
   "remoteUser": "vscode",
   "hostRequirements": { "cpus": 2, "memory": "4gb" }
